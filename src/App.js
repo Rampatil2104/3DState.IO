@@ -1,25 +1,30 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from 'react';
+import Game from './components/Game';
+import Menu from './components/UI/Menu';
+import { GameProvider } from './hooks/useGameState';
 
-function App() {
+const App = () => {
+  const [gameStarted, setGameStarted] = useState(false);
+
+  const handleStartGame = () => {
+    setGameStarted(true);
+  };
+
+  const handleQuitToMenu = () => {
+    setGameStarted(false);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="w-screen h-screen overflow-hidden">
+      <GameProvider>
+        {!gameStarted ? (
+          <Menu onStartGame={handleStartGame} />
+        ) : (
+          <Game onQuitToMenu={handleQuitToMenu} />
+        )}
+      </GameProvider>
     </div>
   );
-}
+};
 
 export default App;
