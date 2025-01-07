@@ -17,12 +17,11 @@ export const GameProvider = ({ children }) => {
     setGameStatus('playing');
   }, []);
 
-  // Handle player territory clicks
+  // Player territory clicks
   const handleTerritoryClick = useCallback((territory) => {
     if (gameStatus !== 'playing') return;
 
     if (!selectedTerritory) {
-      // Only allow player to select their own territories
       if (territory.owner === 'player') {
         setSelectedTerritory(territory);
       }
@@ -57,70 +56,68 @@ export const GameProvider = ({ children }) => {
     }
   }, [selectedTerritory, gameStatus]);
 
-  // AI logic
+  // AI logic with faster moves
   useEffect(() => {
     let isActive = true;
+    let lastMoveTime = 0;
+    const MOVE_COOLDOWN = 300; // AI can move every 300ms
 
     if (gameStatus !== 'playing') return;
 
     const makeAIMove = () => {
       if (!isActive) return;
 
-      // Get AI territories with enough troops
+      const now = Date.now();
+      if (now - lastMoveTime < MOVE_COOLDOWN) return;
+
       const aiTerritories = territories.filter(t => 
-        t.owner === 'ai' && t.troops > 10
+        t.owner === 'ai' && t.troops > 8  // Lowered troop requirement
       );
 
       if (aiTerritories.length === 0) return;
 
-      // Get potential targets (prioritize player territories)
       const playerTerritories = territories.filter(t => t.owner === 'player');
       const neutralTerritories = territories.filter(t => t.owner === 'neutral');
       const possibleTargets = [...playerTerritories, ...neutralTerritories];
 
       if (possibleTargets.length === 0) return;
 
-      // Find strongest AI territory
-      const strongestAI = aiTerritories.reduce((max, t) => 
-        t.troops > max.troops ? t : max, aiTerritories[0]
-      );
+      // Find multiple strong AI territories
+      const sortedAITerritories = aiTerritories.sort((a, b) => b.troops - a.troops);
+      const strongAITerritories = sortedAITerritories.slice(0, 2); // Get top 2 strongest
 
-      // Find weakest target
-      const weakestTarget = possibleTargets.reduce((min, t) => 
-        t.troops < min.troops ? t : min, possibleTargets[0]
-      );
+      // Find all weak targets
+      const sortedTargets = possibleTargets.sort((a, b) => a.troops - b.troops);
+      
+      // Try to make multiple moves
+      strongAITerritories.forEach(aiTerritory => {
+        const target = sortedTargets.find(t => aiTerritory.troops > t.troops);
+        if (target) {
+          const movingTroops = Math.floor(aiTerritory.troops * 0.8); // More aggressive
 
-      // Attack if we have enough troops
-      if (strongestAI.troops > weakestTarget.troops) {
-        console.log('AI attacking:', {
-          from: strongestAI.id,
-          fromTroops: strongestAI.troops,
-          to: weakestTarget.id,
-          toTroops: weakestTarget.troops
-        });
+          setTroops(prev => [...prev, {
+            id: `ai-${Date.now()}-${aiTerritory.id}`,
+            startPos: aiTerritory.position,
+            endPos: target.position,
+            amount: movingTroops,
+            owner: 'ai',
+            targetId: target.id,
+            sourceId: aiTerritory.id
+          }]);
 
-        const movingTroops = Math.floor(strongestAI.troops * 0.7);
+          setTerritories(prev => prev.map(t => {
+            if (t.id === aiTerritory.id) {
+              return { ...t, troops: Math.max(1, t.troops - movingTroops) };
+            }
+            return t;
+          }));
+        }
+      });
 
-        setTroops(prev => [...prev, {
-          id: `ai-${Date.now()}`,
-          startPos: strongestAI.position,
-          endPos: weakestTarget.position,
-          amount: movingTroops,
-          owner: 'ai',
-          targetId: weakestTarget.id,
-          sourceId: strongestAI.id
-        }]);
-
-        setTerritories(prev => prev.map(t => {
-          if (t.id === strongestAI.id) {
-            return { ...t, troops: Math.max(1, t.troops - movingTroops) };
-          }
-          return t;
-        }));
-      }
+      lastMoveTime = now;
     };
 
-    const interval = setInterval(makeAIMove, 1000);
+    const interval = setInterval(makeAIMove, 100); // Check much more frequently
 
     return () => {
       isActive = false;
@@ -128,29 +125,24 @@ export const GameProvider = ({ children }) => {
     };
   }, [territories, gameStatus]);
 
-  // Handle troop arrival and battles
   const handleTroopArrival = useCallback((troop) => {
     setTroops(prev => prev.filter(t => t.id !== troop.id));
     
     setTerritories(prev => prev.map(territory => {
       if (territory.id === troop.targetId) {
         if (territory.owner === troop.owner) {
-          // Reinforcement
           return {
             ...territory,
             troops: territory.troops + troop.amount
           };
         } else {
-          // Battle
           if (troop.amount > territory.troops) {
-            // Attacker wins
             return {
               ...territory,
               owner: troop.owner,
               troops: Math.max(1, troop.amount - territory.troops)
             };
           } else {
-            // Defender wins
             return {
               ...territory,
               troops: Math.max(1, territory.troops - troop.amount)
@@ -162,7 +154,7 @@ export const GameProvider = ({ children }) => {
     }));
   }, []);
 
-  // Generate troops over time
+  // Generate troops
   useEffect(() => {
     if (gameStatus !== 'playing') return;
 
@@ -181,7 +173,7 @@ export const GameProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [gameStatus]);
 
-  // Check win/lose conditions
+  // Check win/lose
   useEffect(() => {
     if (gameStatus !== 'playing') return;
 
