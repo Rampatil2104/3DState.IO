@@ -6,19 +6,19 @@ export const TERRITORY_COLORS = {
 
 export const INITIAL_TROOPS = {
   easy: {
-    player: 30,
-    ai: 20,
-    neutral: 10
-  },
-  medium: {
-    player: 25,
-    ai: 25,
-    neutral: 15
-  },
-  hard: {
-    player: 20,
+    player: 50,
     ai: 30,
     neutral: 20
+  },
+  medium: {
+    player: 40,
+    ai: 40,
+    neutral: 25
+  },
+  hard: {
+    player: 30,
+    ai: 50,
+    neutral: 30
   }
 };
 
@@ -37,7 +37,6 @@ export const MAP_CONFIGURATIONS = {
   }
 };
 
-// 1 troop generated per second
 export const TERRITORY_GENERATION_RATE = {
   easy: 1,
   medium: 1,
